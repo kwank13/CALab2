@@ -39,9 +39,85 @@ class cache {
       
       }
 */       
+class L1 {
+
+	public:
+	int blocksize, assoc, cachesize;
+	int tagBits, setBits, offsetBits, indexnum;
+	bitset<32> *addr;
+
+	L1 (int block, int ways, int size) {
+		blocksize = block;
+		assoc = ways;
+		int temp = (int)(log(size*1000)/log(2)) + 1;
+		cachesize = (int)pow(2, temp);
+		offsetBits = log(blocksize)/log(2);
+		indexnum = (cachesize/blocksize)/assoc;
+		cout << "indexnum: " << indexnum << endl;
+		setBits = (int)(log(indexnum)/log(2));
+		tagBits = 32 - (offsetBits + setBits);
+
+		addr = new bitset<32>[assoc*indexnum];
+/*
+		addr = new bitset<32>*[assoc];
+		for (int i = 0; i < assoc; i++)
+			addr[i] = new bitset<32>[indexnum];
+*/
+	}
+
+	~L1() {
+		delete [] addr;
+/*
+		for (int i = 0; i < assoc; i++)
+			delete [] addr[i];
+
+		delete [] addr;
+*/
+	}
+};
+
+class L2 {
+	public:
+	int blocksize, assoc, cachesize;
+	int tagBits, setBits, offsetBits, indexnum;
+	bitset<32> *addr;
+
+	L2(int block, int ways, int size) {
+		blocksize = block;
+		assoc = ways;
+		int temp = (int)(log(size*1000)/log(2)) + 1;
+		cachesize = (int)pow(2, temp);
+		offsetBits = log(blocksize)/log(2);
+		indexnum = (cachesize/blocksize)/assoc;
+		cout << "indexnum: " << indexnum << endl;
+		setBits = (int)(log(indexnum)/log(2));
+		tagBits = 32 - (offsetBits + setBits);
+
+		addr = new bitset<32>[assoc*indexnum];
+/*
+		addr = new bitset<32>*[assoc];
+		for (int i = 0; i < assoc; i++)
+			addr[i] = new bitset<32>[indexnum];
+*/
+	}
+
+	~L2() {
+		delete [] addr;
+/*
+		for (int i = 0; i < assoc; i++)
+			delete [] addr[i];
+
+		delete [] addr;
+*/
+	}
+};
 
 int main(int argc, char* argv[]){
 
+	if (argc != 3) {
+		printf("Usage: cache <cacheconfig> <trace file>\n");
+		return 0;
+	}
 
     
     config cacheconfig;
@@ -65,8 +141,17 @@ int main(int argc, char* argv[]){
    // Implement by you: 
    // initialize the hirearch cache system with those configs
    // probably you may define a Cache class for L1 and L2, or any data structure you like
-   
-   
+
+	L1 l1cache(cacheconfig.L1blocksize, cacheconfig.L1setsize, cacheconfig.L1size);
+	cout << "offset bits: " << l1cache.offsetBits << ", set bits: " << l1cache.setBits << ", tag bits: ";
+	cout << l1cache.tagBits << endl;
+
+	l1cache.addr[1*l1cache.indexnum + 0] = 3;
+	cout << "[1][0] = " << l1cache.addr[1*l1cache.indexnum+0] << endl;
+	L2 l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
+   	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
+	cout << l2cache.tagBits << endl;
+
    
    
   int L1AcceState =0; // L1 access state variable, can be one of NA, RH, RM, WH, WM;
@@ -105,7 +190,8 @@ int main(int argc, char* argv[]){
                  // read access to the L1 Cache, 
                  //  and then L2 (if required), 
                  //  update the L1 and L2 access state variable;
-                 
+
+                 //cout << "access address: " << accessaddr << endl;
                  
                  
                  
