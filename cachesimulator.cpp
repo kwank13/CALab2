@@ -39,14 +39,22 @@ class cache {
       
       }
 */       
-class L1 {
+
+struct cacheblock {
+	bitset<32> addr;
+	bool dirty;
+	bool valid;
+};
+
+class cache {
 
 	public:
 	int blocksize, assoc, cachesize;
-	int tagBits, setBits, offsetBits, indexnum;
-	bitset<32> *addr;
+	int tagBits, setBits, offsetBits, indexnum, counter;
+	struct cacheblock *addr;
 
-	L1 (int block, int ways, int size) {
+	cache (int block, int ways, int size) {
+		counter = 0;
 		blocksize = block;
 		assoc = ways;
 		int temp = (int)(log(size*1000)/log(2)) + 1;
@@ -57,25 +65,15 @@ class L1 {
 		setBits = (int)(log(indexnum)/log(2));
 		tagBits = 32 - (offsetBits + setBits);
 
-		addr = new bitset<32>[assoc*indexnum];
-/*
-		addr = new bitset<32>*[assoc];
-		for (int i = 0; i < assoc; i++)
-			addr[i] = new bitset<32>[indexnum];
-*/
+		addr = new cacheblock[assoc*indexnum];
 	}
 
-	~L1() {
+	~cache() {
 		delete [] addr;
-/*
-		for (int i = 0; i < assoc; i++)
-			delete [] addr[i];
-
-		delete [] addr;
-*/
 	}
 };
 
+/*
 class L2 {
 	public:
 	int blocksize, assoc, cachesize;
@@ -94,23 +92,39 @@ class L2 {
 		tagBits = 32 - (offsetBits + setBits);
 
 		addr = new bitset<32>[assoc*indexnum];
-/*
+//
 		addr = new bitset<32>*[assoc];
 		for (int i = 0; i < assoc; i++)
 			addr[i] = new bitset<32>[indexnum];
-*/
+//
 	}
 
 	~L2() {
 		delete [] addr;
-/*
+//
 		for (int i = 0; i < assoc; i++)
 			delete [] addr[i];
 
 		delete [] addr;
-*/
+//
 	}
 };
+*/
+
+bool compareTag(bitset<32> addr1, bitset<32> addr2, int tagBits){
+	bitset<32> tag1, tag2;
+	int start = (32-tagBits) + 1;
+
+	for (int i = start, j = 0; i < 32; i++, j++){
+		tag1[j] = addr1[i];
+		tag2[j] = addr2[i];
+	}
+
+	if (tag1 == tag2)
+		return true;
+	else
+		return false;
+}
 
 int main(int argc, char* argv[]){
 
@@ -142,15 +156,16 @@ int main(int argc, char* argv[]){
    // initialize the hirearch cache system with those configs
    // probably you may define a Cache class for L1 and L2, or any data structure you like
 
-	L1 l1cache(cacheconfig.L1blocksize, cacheconfig.L1setsize, cacheconfig.L1size);
+	cache l1cache(cacheconfig.L1blocksize, cacheconfig.L1setsize, cacheconfig.L1size);
 	cout << "offset bits: " << l1cache.offsetBits << ", set bits: " << l1cache.setBits << ", tag bits: ";
 	cout << l1cache.tagBits << endl;
 
-	l1cache.addr[1*l1cache.indexnum + 0] = 3;
+	l1cache.addr[1*l1cache.indexnum + 0] = 0xbf984000;
 	cout << "[1][0] = " << l1cache.addr[1*l1cache.indexnum+0] << endl;
-	L2 l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
+	cache l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
 	cout << l2cache.tagBits << endl;
+
 
    
    
@@ -206,6 +221,8 @@ int main(int argc, char* argv[]){
                   //and then L2 (if required), 
                   //update the L1 and L2 access state variable;
                   
+				  //bool equal = compareTag(l1cache.addr[1*l1cache.indexnum+0], accessaddr, l1cache.tagBits); 
+				  //cout << "equal: " << equal << endl;
                   
                   
                   
