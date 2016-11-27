@@ -124,19 +124,28 @@ class cache {
 	bool write (bitset<32> waddr) {
 		//cout << "input: " << waddr << endl;
 		long setnum = getSet(waddr);
+		bool written = false;
 		//cout << "write: " << setnum << endl;
 
 		for (int i = 0; i < ways; i++){
-			bool written = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);
+			//cout << "waddr: " << waddr << endl;
+			//cout << "[" << setnum << "][" << i << "]: " << this->cb[setnum*ways+i].addr << endl;
+			written = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);
+			//cout << "written: " << written << endl;
+			//cout << "loop " << i << ": " << written << endl;
 			if (written && cb[setnum*ways+i].valid == true) {
 				cb[setnum*ways+i].dirty = true;
+				break;
 				//cout << "written: " << written << endl;
 				//cout << "dirty: " << cb[setnum*ways+i].dirty << endl;
-				return true;
+				//return true;
 			}
+			/*
 			else
 				return false;
+			*/
 		}
+		return written;
 		//return true;
 	}
 };
@@ -195,13 +204,16 @@ int main(int argc, char* argv[]){
 
 	//l1cache.cb[1*l1cache.indexnum + 0].addr = 0xbf984000;
 	//cout << "[1][0] = " << l1cache.cb[1*l1cache.indexnum+0].addr << endl;
-	l1cache.cb[183*l1cache.ways + 0].addr = 0xbf9845b8;
-	l1cache.cb[183*l1cache.ways + 0].valid = true;
-	cout << "[183][0] = " << l1cache.cb[183*l1cache.ways+0].addr << endl;
+	//l1cache.cb[183*l1cache.ways + 0].addr = 0xbf9845b8;
+	//l1cache.cb[183*l1cache.ways + 0].valid = true;
+	//cout << "[183][0] = " << l1cache.cb[183*l1cache.ways+0].addr << endl;
 	cache l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
 	cout << "L2: block size = " << l2cache.blocksize << ", sets = " << l2cache.indexnum << ", ways = " << l2cache.ways << ", size = " << l2cache.cachesize << endl;
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
 	cout << l2cache.tagBits << endl;
+	//l2cache.cb[91*l2cache.ways + 3].addr = 0xbf9845b8;
+	//l2cache.cb[91*l2cache.ways + 3].valid = true;
+	//cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+1].addr << endl;
 
 	int accessnum = 1;
 	bool equal = false;
@@ -264,6 +276,8 @@ int main(int argc, char* argv[]){
                   
 				  //equal = compareTag(l1cache.cb[183*l1cache.ways+0].addr, accessaddr, l1cache.tagBits); 
 				  //cout << accessnum << ": " << equal << endl;
+				  //equal = compareTag(l2cache.cb[183*l2cache.ways+0].addr, accessaddr, l2cache.tagBits);
+				  //cout << accessnum << ": " << equal << endl;
 					cout << accessnum << ": ";
 					if (l1cache.write(accessaddr))
 						cout << "L1: " << WH << " L2: " << NA << endl;
@@ -283,6 +297,10 @@ int main(int argc, char* argv[]){
                   
                   }
              accessnum++; 
+			/*
+			for (int i = 0; i < l2cache.ways; i++){
+				cout << "[183][" << i << "]: " << l2cache.cb[183*l2cache.ways+i].addr << endl;
+			}*/
               
              
             tracesout<< L1AcceState << " " << L2AcceState << endl;  // Output hit/miss results for L1 and L2 to the output file;
