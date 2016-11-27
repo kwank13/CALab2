@@ -73,7 +73,7 @@ class cache {
 		delete [] cb;
 	}
 
-	bitset<32> read (bitset<32> raddr) {
+	bitset<32> read (bitset<32> raddr, int waynum) {
 		bitset<32> index;
 		int start = offsetBits + 1;
 		int end = offsetBits + setBits;
@@ -84,52 +84,19 @@ class cache {
 
 		set = index.to_ulong();
 
+		/*
 		for (int i = 0; i < ways; i++) {
 			if (compareTag(raddr, cb[set*indexnum + i].addr, tagBits) && cb[set*indexnum + i].valid == true)
 				return cb[set*indexnum + i].addr;
 			else
 				return 0;
-		}
+		}*/
+		if (cb[set*indexnum + waynum].valid == true)
+			return cb[set*indexnum + waynum].addr;
+		else
+			return 0;
 	}
 };
-
-/*
-class L2 {
-	public:
-	int blocksize, assoc, cachesize;
-	int tagBits, setBits, offsetBits, indexnum;
-	bitset<32> *addr;
-
-	L2(int block, int ways, int size) {
-		blocksize = block;
-		assoc = ways;
-		int temp = (int)(log(size*1000)/log(2)) + 1;
-		cachesize = (int)pow(2, temp);
-		offsetBits = log(blocksize)/log(2);
-		indexnum = (cachesize/blocksize)/assoc;
-		cout << "indexnum: " << indexnum << endl;
-		setBits = (int)(log(indexnum)/log(2));
-		tagBits = 32 - (offsetBits + setBits);
-
-		addr = new bitset<32>[assoc*indexnum];
-//
-		addr = new bitset<32>*[assoc];
-		for (int i = 0; i < assoc; i++)
-			addr[i] = new bitset<32>[indexnum];
-//
-	}
-
-	~L2() {
-		delete [] addr;
-//
-		for (int i = 0; i < assoc; i++)
-			delete [] addr[i];
-
-		delete [] addr;
-//
-	}
-};
-*/
 
 bool compareTag(bitset<32> addr1, bitset<32> addr2, int tagBits){
 	bitset<32> tag1, tag2;
