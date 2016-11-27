@@ -39,37 +39,57 @@ class cache {
       
       }
 */       
+bool compareTag(bitset<32> addr1, bitset<32> addr2, int tagBits);
 
 struct cacheblock {
 	bitset<32> addr;
-	bool dirty;
-	bool valid;
+	bool dirty = false;
+	bool valid = false;
 };
 
 class cache {
 
 	public:
-	int blocksize, assoc, cachesize;
+	int blocksize, ways, cachesize;
 	int tagBits, setBits, offsetBits, indexnum, counter;
-	struct cacheblock *addr;
+	struct cacheblock *cb;
 
-	cache (int block, int ways, int size) {
+	cache (int block, int assoc, int size) {
 		counter = 0;
 		blocksize = block;
-		assoc = ways;
+		ways = assoc;
 		int temp = (int)(log(size*1000)/log(2)) + 1;
 		cachesize = (int)pow(2, temp);
 		offsetBits = log(blocksize)/log(2);
-		indexnum = (cachesize/blocksize)/assoc;
+		indexnum = (cachesize/blocksize)/ways;
 		cout << "indexnum: " << indexnum << endl;
 		setBits = (int)(log(indexnum)/log(2));
 		tagBits = 32 - (offsetBits + setBits);
 
-		addr = new cacheblock[assoc*indexnum];
+		cb = new cacheblock[ways*indexnum];
 	}
 
 	~cache() {
-		delete [] addr;
+		delete [] cb;
+	}
+
+	bitset<32> read (bitset<32> raddr) {
+		bitset<32> index;
+		int start = offsetBits + 1;
+		int end = offsetBits + setBits;
+		long set;
+
+		for (int i = start, j = 0; i <= offsetBits; i++, j++)
+			index[j] = raddr[i];
+
+		set = index.to_ulong();
+
+		for (int i = 0; i < ways; i++) {
+			if (compareTag(raddr, cb[set*indexnum + i].addr, tagBits) && cb[set*indexnum + i].valid == true)
+				return cb[set*indexnum + i].addr;
+			else
+				return 0;
+		}
 	}
 };
 
@@ -160,12 +180,14 @@ int main(int argc, char* argv[]){
 	cout << "offset bits: " << l1cache.offsetBits << ", set bits: " << l1cache.setBits << ", tag bits: ";
 	cout << l1cache.tagBits << endl;
 
-	l1cache.addr[1*l1cache.indexnum + 0] = 0xbf984000;
-	cout << "[1][0] = " << l1cache.addr[1*l1cache.indexnum+0] << endl;
+	l1cache.cb[1*l1cache.indexnum + 0].addr = 0xbf984000;
+	cout << "[1][0] = " << l1cache.cb[1*l1cache.indexnum+0].addr << endl;
 	cache l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
 	cout << l2cache.tagBits << endl;
 
+	int accessnum = 1;
+	bool equal = false;
 
    
    
@@ -208,7 +230,9 @@ int main(int argc, char* argv[]){
 
                  //cout << "access address: " << accessaddr << endl;
                  
-                 
+    			  equal = compareTag(l1cache.cb[1*l1cache.indexnum+0].addr, accessaddr, l1cache.tagBits); 
+				  cout << accessnum << ": " << equal << endl;
+             
                  
                  
                  
@@ -221,15 +245,15 @@ int main(int argc, char* argv[]){
                   //and then L2 (if required), 
                   //update the L1 and L2 access state variable;
                   
-				  //bool equal = compareTag(l1cache.addr[1*l1cache.indexnum+0], accessaddr, l1cache.tagBits); 
-				  //cout << "equal: " << equal << endl;
+				  equal = compareTag(l1cache.cb[1*l1cache.indexnum+0].addr, accessaddr, l1cache.tagBits); 
+				  cout << accessnum << ": " << equal << endl;
                   
                   
                   
                   
                   
                   }
-              
+             accessnum++; 
               
              
             tracesout<< L1AcceState << " " << L2AcceState << endl;  // Output hit/miss results for L1 and L2 to the output file;

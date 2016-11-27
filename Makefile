@@ -1,7 +1,7 @@
 all: cache
 
 cache: cachesimulator.cpp
-	g++ cachesimulator.cpp -o cache
+	g++ cachesimulator.cpp -std=c++11 -o cache
 
 test: all
 	./cache cacheconfig.txt trace.txt
