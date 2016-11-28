@@ -41,10 +41,19 @@ class cache {
 */       
 bool compareTag(bitset<32> addr1, bitset<32> addr2, int tagBits);
 
+//Struct for individual cache entries
 struct cacheblock {
 	bitset<32> addr;
 	bool dirty = false;
 	bool valid = false;
+
+	cacheblock& operator= (const cacheblock& a) {
+		addr = a.addr;
+		dirty = a.dirty;
+		valid = a.valid;
+
+		return *this;
+	}
 };
 
 class cache {
@@ -54,25 +63,27 @@ class cache {
 	int tagBits, setBits, offsetBits, indexnum, counter;
 	struct cacheblock *cb;
 
+	//Calculate cache properties and initialize values
 	cache (int block, int assoc, int size) {
 		counter = 0;
 		blocksize = block;
 		ways = assoc;
-		int temp = (int)(log(size*1000)/log(2)) + 1;
-		cachesize = (int)pow(2, temp);
+		int temp = (int)(log(size*1000)/log(2)) + 1; //find true cache size exponent
+		cachesize = (int)pow(2, temp); //true cache size
 		offsetBits = log(blocksize)/log(2);
-		indexnum = (cachesize/blocksize)/ways;
+		indexnum = (cachesize/blocksize)/ways; //# of sets
 		//cout << "indexnum: " << indexnum << endl;
 		setBits = (int)(log(indexnum)/log(2));
 		tagBits = 32 - (offsetBits + setBits);
 
-		cb = new cacheblock[ways*indexnum];
+		cb = new cacheblock[ways*indexnum]; //create cache array
 	}
 
 	~cache() {
 		delete [] cb;
 	}
 
+	//Take in address and return set value as long
 	long getSet(bitset<32> iaddr){
 		//cout << "getSet input: " << iaddr << endl;
 		bitset<32> temp;
@@ -97,40 +108,35 @@ class cache {
 		return temp.to_ulong();
 	}
 
+/*
 	bitset<32> read (bitset<32> raddr, int waynum) {
-		bitset<32> index;
-		int start = offsetBits + 1;
-		int end = offsetBits + setBits;
-		long set;
+		long setnumber = getSet(raddr);
 
-		for (int i = start, j = 0; i < (offsetBits+1); i++, j++)
-			index[j] = raddr[i];
-
-		set = index.to_ulong();
-
-		/*
+		//
 		for (int i = 0; i < ways; i++) {
 			if (compareTag(raddr, cb[set*indexnum + i].addr, tagBits) && cb[set*indexnum + i].valid == true)
 				return cb[set*indexnum + i].addr;
 			else
 				return 0;
-		}*/
+		}//
 		if (cb[set*indexnum + waynum].valid == true)
 			return cb[set*indexnum + waynum].addr;
 		else
 			return 0;
 	}
+*/
 
+	//Take in address and check all ways for matching tag. If found, update dirty bit then return true.
+	//Else return false
 	bool write (bitset<32> waddr) {
-		//cout << "input: " << waddr << endl;
+		//cout << "write input: " << waddr << endl;
 		long setnum = getSet(waddr);
 		bool written = false;
-		//cout << "write: " << setnum << endl;
+		//cout << "setnum: " << setnum << endl;
 
 		for (int i = 0; i < ways; i++){
-			//cout << "waddr: " << waddr << endl;
-			//cout << "[" << setnum << "][" << i << "]: " << this->cb[setnum*ways+i].addr << endl;
 			written = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);
+			//cout << "[" << setnum << "][" << i << "]: " << this->cb[setnum*ways+i].addr << endl;
 			//cout << "written: " << written << endl;
 			//cout << "loop " << i << ": " << written << endl;
 			if (written && cb[setnum*ways+i].valid == true) {
@@ -147,6 +153,13 @@ class cache {
 		}
 		return written;
 		//return true;
+	}
+
+	void updateCounter() {
+		if (counter < ways)
+			counter++;
+		else
+			counter = 0;
 	}
 };
 
@@ -204,16 +217,20 @@ int main(int argc, char* argv[]){
 
 	//l1cache.cb[1*l1cache.indexnum + 0].addr = 0xbf984000;
 	//cout << "[1][0] = " << l1cache.cb[1*l1cache.indexnum+0].addr << endl;
-	//l1cache.cb[183*l1cache.ways + 0].addr = 0xbf9845b8;
-	//l1cache.cb[183*l1cache.ways + 0].valid = true;
-	//cout << "[183][0] = " << l1cache.cb[183*l1cache.ways+0].addr << endl;
+/*
+	l1cache.cb[183*l1cache.ways + 0].addr = 0xbf9845b8;
+	l1cache.cb[183*l1cache.ways + 0].valid = true;
+	cout << "[183][0] = " << l1cache.cb[183*l1cache.ways+0].addr << endl;
+*/
 	cache l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
 	cout << "L2: block size = " << l2cache.blocksize << ", sets = " << l2cache.indexnum << ", ways = " << l2cache.ways << ", size = " << l2cache.cachesize << endl;
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
 	cout << l2cache.tagBits << endl;
-	//l2cache.cb[91*l2cache.ways + 3].addr = 0xbf9845b8;
-	//l2cache.cb[91*l2cache.ways + 3].valid = true;
-	//cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+1].addr << endl;
+/*
+	l2cache.cb[91*l2cache.ways + 3].addr = 0xbf9845b8;
+	l2cache.cb[91*l2cache.ways + 3].valid = true;
+	cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+1].addr << endl;
+*/
 
 	int accessnum = 1;
 	bool equal = false;
