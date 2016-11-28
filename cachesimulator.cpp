@@ -217,11 +217,11 @@ int main(int argc, char* argv[]){
 
 	//l1cache.cb[1*l1cache.indexnum + 0].addr = 0xbf984000;
 	//cout << "[1][0] = " << l1cache.cb[1*l1cache.indexnum+0].addr << endl;
-/*
+//
 	l1cache.cb[183*l1cache.ways + 0].addr = 0xbf9845b8;
 	l1cache.cb[183*l1cache.ways + 0].valid = true;
 	cout << "[183][0] = " << l1cache.cb[183*l1cache.ways+0].addr << endl;
-*/
+//
 	cache l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
 	cout << "L2: block size = " << l2cache.blocksize << ", sets = " << l2cache.indexnum << ", ways = " << l2cache.ways << ", size = " << l2cache.cachesize << endl;
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
@@ -296,14 +296,19 @@ int main(int argc, char* argv[]){
 				  //equal = compareTag(l2cache.cb[183*l2cache.ways+0].addr, accessaddr, l2cache.tagBits);
 				  //cout << accessnum << ": " << equal << endl;
 					cout << accessnum << ": ";
-					if (l1cache.write(accessaddr))
+					if (l1cache.write(accessaddr)) {
 						cout << "L1: " << WH << " L2: " << NA << endl;
-					else {
+						L1AcceState = WH; L2AcceState = NA;
+					} else {
 						cout << "L1: " << WM;
-						if (l2cache.write(accessaddr))
+						L1AcceState = WM;
+						if (l2cache.write(accessaddr)) {
 							cout << " L2: " << WH << endl;
-						else
+							L2AcceState = WH;
+						} else {
 							cout << " L2: " << WM << endl;
+							L2AcceState = WM;
+						}
 					}
 					if (accessnum > 15)
 						break;
