@@ -108,39 +108,25 @@ class cache {
 		return temp.to_ulong();
 	}
 
-/*
-	bitset<32> read (bitset<32> raddr, int waynum) {
-		long setnumber = getSet(raddr);
-
-		//
-		for (int i = 0; i < ways; i++) {
-			if (compareTag(raddr, cb[set*indexnum + i].addr, tagBits) && cb[set*indexnum + i].valid == true)
-				return cb[set*indexnum + i].addr;
-			else
-				return 0;
-		}//
-		if (cb[set*indexnum + waynum].valid == true)
-			return cb[set*indexnum + waynum].addr;
-		else
-			return 0;
-	}
-*/
-
-	//Take in address and check all ways for matching tag. If found, update dirty bit then return true.
-	//Else return false
-	bool write (bitset<32> waddr) {
+	//Take in address and check all ways for matching tag.
+	//If found return true, else return false
+	//If write access, then set dirty bit true
+	bool find (bitset<32> waddr, bool waccess) {
 		//cout << "write input: " << waddr << endl;
 		long setnum = getSet(waddr);
-		bool written = false;
+		bool found = false;
 		//cout << "setnum: " << setnum << endl;
 
 		for (int i = 0; i < ways; i++){
-			written = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);
+			found = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);
 			//cout << "[" << setnum << "][" << i << "]: " << this->cb[setnum*ways+i].addr << endl;
 			//cout << "written: " << written << endl;
 			//cout << "loop " << i << ": " << written << endl;
-			if (written && cb[setnum*ways+i].valid == true) {
-				cb[setnum*ways+i].dirty = true;
+			if (found && cb[setnum*ways+i].valid == true) {
+				if (waccess) {
+					cb[setnum*ways+i].dirty = true;
+					cout << "Setting dirty bit" << endl;
+				}
 				break;
 				//cout << "written: " << written << endl;
 				//cout << "dirty: " << cb[setnum*ways+i].dirty << endl;
@@ -151,7 +137,7 @@ class cache {
 				return false;
 			*/
 		}
-		return written;
+		return found;
 		//return true;
 	}
 
@@ -217,16 +203,18 @@ int main(int argc, char* argv[]){
 
 	//l1cache.cb[1*l1cache.indexnum + 0].addr = 0xbf984000;
 	//cout << "[1][0] = " << l1cache.cb[1*l1cache.indexnum+0].addr << endl;
-//
+/*
+	// Use this code to ensure L1 hit for at least first write access
 	l1cache.cb[183*l1cache.ways + 0].addr = 0xbf9845b8;
 	l1cache.cb[183*l1cache.ways + 0].valid = true;
 	cout << "[183][0] = " << l1cache.cb[183*l1cache.ways+0].addr << endl;
-//
+*/
 	cache l2cache(cacheconfig.L2blocksize, cacheconfig.L2setsize, cacheconfig.L2size);
 	cout << "L2: block size = " << l2cache.blocksize << ", sets = " << l2cache.indexnum << ", ways = " << l2cache.ways << ", size = " << l2cache.cachesize << endl;
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
 	cout << l2cache.tagBits << endl;
 /*
+	// Use this code to ensure L2 hit for at least first write access
 	l2cache.cb[91*l2cache.ways + 3].addr = 0xbf9845b8;
 	l2cache.cb[91*l2cache.ways + 3].valid = true;
 	cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+1].addr << endl;
@@ -295,18 +283,18 @@ int main(int argc, char* argv[]){
 				  //cout << accessnum << ": " << equal << endl;
 				  //equal = compareTag(l2cache.cb[183*l2cache.ways+0].addr, accessaddr, l2cache.tagBits);
 				  //cout << accessnum << ": " << equal << endl;
-					cout << accessnum << ": ";
-					if (l1cache.write(accessaddr)) {
-						cout << "L1: " << WH << " L2: " << NA << endl;
+					cout << accessnum << " - write: ";
+					if (l1cache.find(accessaddr, true)) {
+						cout << "L1: hit L2: no access" << endl;
 						L1AcceState = WH; L2AcceState = NA;
 					} else {
-						cout << "L1: " << WM;
+						cout << "L1: miss";
 						L1AcceState = WM;
-						if (l2cache.write(accessaddr)) {
-							cout << " L2: " << WH << endl;
+						if (l2cache.find(accessaddr, true)) {
+							cout << " L2: hit" << endl;
 							L2AcceState = WH;
 						} else {
-							cout << " L2: " << WM << endl;
+							cout << " L2: miss" << endl;
 							L2AcceState = WM;
 						}
 					}
