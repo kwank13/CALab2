@@ -3,10 +3,13 @@ all: cache
 cache: cachesimulator.cpp
 	g++ cachesimulator.cpp -std=c++11 -o cache
 
-test: all
+run: all
 	./cache cacheconfig.txt trace.txt
 
-clean:
-	rm cache
+test: all
+	./cache cacheconfig.txt test.txt
 
-.PHONY: clean all test
+clean:
+	rm cache *.out
+
+.PHONY: clean all test run
