@@ -62,6 +62,7 @@ class cache {
 	int blocksize, ways, cachesize;
 	int tagBits, setBits, offsetBits, indexnum, counter;
 	struct cacheblock *cb;
+	bitset<32> *ra;
 
 	//Calculate cache properties and initialize values
 	cache (int block, int assoc, int size) {
@@ -125,7 +126,9 @@ class cache {
 			if (found && cb[setnum*ways+i].valid == true) {
 				if (waccess) {
 					cb[setnum*ways+i].dirty = true;
-					cout << "Setting dirty bit" << endl;
+					//cout << "Setting dirty bit" << endl;
+				} else {
+					ra = &cb[setnum*ways+i].addr;
 				}
 				break;
 				//cout << "written: " << written << endl;
@@ -219,7 +222,7 @@ int main(int argc, char* argv[]){
 	// Use this code to ensure L2 hit for at least first write access
 	l2cache.cb[91*l2cache.ways + 3].addr = 0xbf9845b8;
 	l2cache.cb[91*l2cache.ways + 3].valid = true;
-	cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+1].addr << endl;
+	cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+3].addr << endl;
 //
 
 	int accessnum = 1;
@@ -278,6 +281,8 @@ int main(int argc, char* argv[]){
 						if (l2cache.find(accessaddr, false)) {
 							cout << " L2: hit" << endl;
 							L2AcceState = RH;
+							//cout << "RA: " << *l2cache.ra << endl;
+							bitset<32> update = *l2cache.ra;
 						} else {
 							cout << " L2: miss" << endl;
 							L2AcceState = RM;
