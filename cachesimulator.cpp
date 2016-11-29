@@ -141,6 +141,8 @@ class cache {
 		//return true;
 	}
 
+	
+
 	void updateCounter() {
 		if (counter < ways)
 			counter++;
@@ -213,12 +215,12 @@ int main(int argc, char* argv[]){
 	cout << "L2: block size = " << l2cache.blocksize << ", sets = " << l2cache.indexnum << ", ways = " << l2cache.ways << ", size = " << l2cache.cachesize << endl;
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
 	cout << l2cache.tagBits << endl;
-/*
+//
 	// Use this code to ensure L2 hit for at least first write access
 	l2cache.cb[91*l2cache.ways + 3].addr = 0xbf9845b8;
 	l2cache.cb[91*l2cache.ways + 3].valid = true;
 	cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+1].addr << endl;
-*/
+//
 
 	int accessnum = 1;
 	bool equal = false;
@@ -264,8 +266,23 @@ int main(int argc, char* argv[]){
 
                  //cout << "access address: " << accessaddr << endl;
                  
-    			  equal = compareTag(l1cache.cb[1*l1cache.indexnum+0].addr, accessaddr, l1cache.tagBits); 
-				  cout << accessnum << ": " << equal << endl;
+    			  //equal = compareTag(l1cache.cb[1*l1cache.indexnum+0].addr, accessaddr, l1cache.tagBits); 
+				  //cout << accessnum << ": " << equal << endl;
+					cout << accessnum << " - read: ";
+					if (l1cache.find(accessaddr, false)) {
+						cout << "L1: hit L2: no access" << endl;
+						L1AcceState = RH; L2AcceState = NA;
+					} else {
+						cout << "L1: miss";
+						L1AcceState = RM;
+						if (l2cache.find(accessaddr, false)) {
+							cout << " L2: hit" << endl;
+							L2AcceState = RH;
+						} else {
+							cout << " L2: miss" << endl;
+							L2AcceState = RM;
+						}
+					}
              
                  
                  
