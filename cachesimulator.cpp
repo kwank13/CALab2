@@ -234,7 +234,7 @@ int main(int argc, char* argv[]){
 	//cout << "[1][0] = " << l1cache.cb[1*l1cache.indexnum+0].addr << endl;
 /*
 	// Use this code to ensure L1 hit for at least first write access
-	l1cache.cb[183*l1cache.ways + 0].addr = 0xbf9845b8;
+	l1cache.cb[183*l1cache.ways + 0].addr = 0xbf98454c;//0xbf9845b8;
 	l1cache.cb[183*l1cache.ways + 0].valid = true;
 	cout << "[183][0] = " << l1cache.cb[183*l1cache.ways+0].addr << endl;
 */
@@ -242,12 +242,19 @@ int main(int argc, char* argv[]){
 	cout << "L2: block size = " << l2cache.blocksize << ", sets = " << l2cache.indexnum << ", ways = " << l2cache.ways << ", size = " << l2cache.cachesize << endl;
    	cout << "offset bits: " << l2cache.offsetBits << ", set bits: " << l2cache.setBits << ", tag bits: ";
 	cout << l2cache.tagBits << endl;
-//
+/*
 	// Use this code to ensure L2 hit for at least first write access
-	l2cache.cb[91*l2cache.ways + 3].addr = 0xbf9845b8;
+	l2cache.cb[91*l2cache.ways + 3].addr = //0xbf98454c;// 0xbf9845b8;
 	l2cache.cb[91*l2cache.ways + 3].valid = true;
-	cout << "[91][1] = " << l2cache.cb[91*l2cache.ways+3].addr << endl;
-//
+	//cout << "[91][3] = " << l2cache.cb[91*l2cache.ways+3].addr << endl;
+*/
+	/*
+	for (int i = 0; i < l2cache.ways; i++){
+		cout << "[91][" << i << "]: " << l2cache.cb[91*l2cache.ways+i].addr << endl;
+		cout << "[91][" << i << "] valid: " << l2cache.cb[91*l2cache.ways+i].valid << endl;
+	}
+	*/
+	//cout << "[183][0]" << l1cache.cb[183*l1cache.ways+0].addr << endl;
 
 	int accessnum = 1;
 	bool equal = false;
@@ -317,8 +324,10 @@ int main(int argc, char* argv[]){
 						} else {
 							cout << " L2: miss" << endl;
 							L2AcceState = RM;
-							if (!l2cache.find_empty_way(accessaddr, update)) {
-								spare = l2cache.evict(accessaddr, update);
+								//cout << "spare: " << spare << endl;
+							if (!l2cache.find_empty_way(accessaddr, accessaddr)) {
+								spare = l2cache.evict(accessaddr, accessaddr);
+								cout << "spare: " << spare << endl;
 							}
 						}
 					}
@@ -354,7 +363,7 @@ int main(int argc, char* argv[]){
 							L2AcceState = WM;
 						}
 					}
-					if (accessnum > 15)
+					if (accessnum > 150)
 						break;
                   
                   
@@ -365,7 +374,8 @@ int main(int argc, char* argv[]){
              accessnum++; 
 			/*
 			for (int i = 0; i < l2cache.ways; i++){
-				cout << "[183][" << i << "]: " << l2cache.cb[183*l2cache.ways+i].addr << endl;
+				cout << "[91][" << i << "]: " << l2cache.cb[91*l2cache.ways+i].addr << endl;
+		cout << "[91][" << i << "] valid: " << l2cache.cb[91*l2cache.ways+i].valid << endl;
 			}*/
               
              
