@@ -44,8 +44,8 @@ bool compareTag(bitset<32> addr1, bitset<32> addr2, int tagBits);
 //Struct for individual cache entries
 struct cacheblock {
 	bitset<32> addr;
-	bool dirty = false;
-	bool valid = false;
+	bool dirty;// = false;
+	bool valid;// = false;
 };
 
 class cache {
