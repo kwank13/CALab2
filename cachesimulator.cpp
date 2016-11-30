@@ -144,7 +144,21 @@ class cache {
 		//return true;
 	}
 
-	
+	bool find_empty_way (bitset<32> old_addr, bitset<32> new_addr) {
+		long setnumber = getSet(old_addr);
+		bool updated = false;
+
+		for (int i = 0; i < ways; i++) {
+			if (cb[setnumber*ways+i].valid == false) {
+				cb[setnumber*ways+i].addr = new_addr;
+				cb[setnumber*ways+i].valid = true;
+				updated = true;
+				break;
+			}
+		}
+
+		return updated;
+	}
 
 	void updateCounter() {
 		if (counter < ways)
@@ -283,9 +297,23 @@ int main(int argc, char* argv[]){
 							L2AcceState = RH;
 							//cout << "RA: " << *l2cache.ra << endl;
 							bitset<32> update = *l2cache.ra;
+							bitset<32> spare;
+							//Pseudo code
+							if (l1cache.find_empty_way(accessaddr)) {
+								l1cache.write(accessaddr, update);
+							} else {
+								spare = l1cache.evict(accessaddr);
+								l1cache.write(accessaddr, update);
+								l2cache.find(spare, true);
+							}
 						} else {
 							cout << " L2: miss" << endl;
 							L2AcceState = RM;
+							if (l2cache.find_empty_way(accessaddr)) {
+								l2cache.write(accessaddr, accessaddr);
+							} else {
+								spare = l2cache.evict(accessaddr);
+								l2cache.write(accessaddr, accessaddr);
 						}
 					}
              
