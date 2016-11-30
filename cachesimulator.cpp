@@ -47,13 +47,14 @@ struct cacheblock {
 	bool dirty = false;
 	bool valid = false;
 
+	/*
 	cacheblock& operator= (const cacheblock& a) {
 		addr = a.addr;
 		dirty = a.dirty;
 		valid = a.valid;
 
 		return *this;
-	}
+	}*/
 };
 
 class cache {
@@ -158,6 +159,15 @@ class cache {
 		}
 
 		return updated;
+	}
+
+	bitset<32> evict (bitset<32> eaddr, bitset<32> replace) {
+		long snum = getSet(eaddr);
+		bitset<32> evicted = cb[snum*ways+counter].addr;
+		cb[snum*ways+counter].addr = replace;
+		updateCounter();
+
+		return evicted;
 	}
 
 	void updateCounter() {
@@ -292,28 +302,24 @@ int main(int argc, char* argv[]){
 					} else {
 						cout << "L1: miss";
 						L1AcceState = RM;
+						bitset<32> update;
+						bitset<32> spare;
 						if (l2cache.find(accessaddr, false)) {
 							cout << " L2: hit" << endl;
 							L2AcceState = RH;
 							//cout << "RA: " << *l2cache.ra << endl;
-							bitset<32> update = *l2cache.ra;
-							bitset<32> spare;
-							//Pseudo code
-							if (l1cache.find_empty_way(accessaddr)) {
-								l1cache.write(accessaddr, update);
-							} else {
-								spare = l1cache.evict(accessaddr);
-								l1cache.write(accessaddr, update);
+							update = *l2cache.ra;
+							//Pseudo code 
+							if (!l1cache.find_empty_way(accessaddr, update)) {
+								spare = l1cache.evict(accessaddr, update);
 								l2cache.find(spare, true);
 							}
 						} else {
 							cout << " L2: miss" << endl;
 							L2AcceState = RM;
-							if (l2cache.find_empty_way(accessaddr)) {
-								l2cache.write(accessaddr, accessaddr);
-							} else {
-								spare = l2cache.evict(accessaddr);
-								l2cache.write(accessaddr, accessaddr);
+							if (!l2cache.find_empty_way(accessaddr, update)) {
+								spare = l2cache.evict(accessaddr, update);
+							}
 						}
 					}
              
