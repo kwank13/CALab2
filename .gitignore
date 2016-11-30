@@ -1,0 +1,7 @@
+.gitignore
+Lab2.docx
+trace.txt
+cacheconfig.txt
+cache
+*.out
+*.Lab2.*
