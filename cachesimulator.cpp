@@ -55,7 +55,7 @@ class cache {
 	int tagBits, setBits, offsetBits, indexnum, counter;
 	struct cacheblock *cb; //Pointer to cache array
 	bitset<32> *ra; //Pointer to address - used in find() to pass back read hits
-    bitset<32> *evictedData;  //pointer to address that is being evicted
+    bitset<32> evictedData;  //pointer to address that is being evicted
 
 	//Calculate cache properties and initialize values
 	cache (int block, int assoc, int size) {
@@ -153,7 +153,7 @@ class cache {
 		bool evict = false;
 		//bitset<32> evicted = cb[snum*ways+counter].addr;
 		if(cb[snum*ways+counter].dirty == true){
-            evictedData = &cb[snum*ways+counter].addr;
+            evictedData = cb[snum*ways+counter].addr;
             evict = true;
             cb[snum*ways+counter].dirty = false;
 		}
@@ -318,7 +318,7 @@ int main(int argc, char* argv[]){
 							//Write to empty way in L1 or evict and then write
 							if (!l1cache.find_empty_way(accessaddr, update)) {
 								if(l1cache.saveEvicted(accessaddr, update)){ //updating data in L1 and checking if the data being evicted is dirty or not
-                                    l2cache.find(*l2cache.evictedData, true);//if evicted data is dirty, then there is write access to L2
+                                    l2cache.find(l2cache.evictedData, true);//if evicted data is dirty, then there is write access to L2
                                 }
 								// << "L1 spare: " << spare << endl;
 								//l2cache.find(spare, true); //Perform write operation for evicted data
@@ -329,7 +329,7 @@ int main(int argc, char* argv[]){
 							//Write to empty way or evict and then write
 							if (!l1cache.find_empty_way(accessaddr, accessaddr)) {
 								if(l1cache.saveEvicted(accessaddr, accessaddr)){ //updating data in L1 and checking if the data being evicted is dirty or not
-                                    l2cache.find(*l2cache.evictedData, true);//if evicted data is dirty, then there is write access to L2
+                                    l2cache.find(l2cache.evictedData, true);//if evicted data is dirty, then there is write access to L2
                                 }
 							}
 							if (!l2cache.find_empty_way(accessaddr, accessaddr)) {
@@ -373,8 +373,8 @@ int main(int argc, char* argv[]){
 
 					 //Code to prevent going through full trace file
 					///////// REMOVE BEFORE SUBMITTING //////////
-					if (accessnum > 150)
-						break;
+					//if (accessnum > 150)
+						//break;
 
 
 
