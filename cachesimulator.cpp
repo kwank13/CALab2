@@ -1,4 +1,5 @@
- /*
+
+/*
 Cache Simulator
 Level one L1 and level two L2 cache parameters are read from file (block size, line per set and set per cache).
 The 32 bit address is divided into tag bits (t), set index bits (s) and block offset bits (b)
@@ -42,7 +43,8 @@ class cache {
 bool compareTag(bitset<32> addr1, bitset<32> addr2, int tagBits);
 
 //Struct for individual cache entries
-struct cacheblock {
+class cacheblock {
+    public:
 	bitset<32> addr;
 	bool dirty;// = false;
 	bool valid;// = false;
@@ -55,32 +57,28 @@ class cache {
 	int tagBits, setBits, offsetBits, indexnum, counter;
 	struct cacheblock *cb; //Pointer to cache array
 	bitset<32> *ra; //Pointer to address - used in find() to pass back read hits
-    bitset<32> evictedData;  //pointer to address that is being evicted
-
+    bitset<32> evictedData;
 	//Calculate cache properties and initialize values
 	cache (int block, int assoc, int size) {
 		counter = 0;
 		blocksize = block;
+		cachesize = size*1024;
+		offsetBits = log(blocksize)/log(2);
 		if(assoc == 0){
-            offsetBits = log(blocksize)/log(2);
             tagBits = 32-offsetBits;
             setBits = 0;
-            cachesize = size*1024;
             ways = cachesize/blocksize;
             indexnum = 1;
 		}else{
             ways = assoc;
             //int temp = (int)(log(size*1000)/log(2)) + 1; //find true cache size exponent
             //cachesize = (int)pow(2, temp); //true cache size
-            cachesize = size*1024;
-            offsetBits = log(blocksize)/log(2);
             indexnum = (cachesize/blocksize)/ways; //# of sets
             setBits = (int)(log(indexnum)/log(2));
             tagBits = 32 - (offsetBits + setBits);
 		}
-		cb = new cacheblock[ways*indexnum]; //create cache array
-		//cb = new cacheblock[indexnum][ways];
 
+		cb = new cacheblock[ways*indexnum]; //create cache array
 	}
 
 	~cache() {
@@ -89,7 +87,6 @@ class cache {
 
 	//Take in address and return set value as long
 	long getSet(bitset<32> iaddr){
-		//bitset<32> temp;
 		bitset<32> temp;
 		int start = offsetBits;
 		int end = offsetBits + setBits;
@@ -110,8 +107,10 @@ class cache {
 
 		//Search all ways for matching tag
 		for (int i = 0; i < ways; i++){
-			found = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);//comparing the tag bits
+			found = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);
+			//found = compareTag(waddr, cb[setnum*(1+i)].addr, tagBits);
 			if (found && cb[setnum*ways+i].valid == true) { //if found matching tag and data is valid
+            //if(found && cb[setnum*(1+i)].valid == true) {
 				//If write operation, update dirty bit
 				if (waccess) {
 					cb[setnum*ways+i].dirty = true;
@@ -139,7 +138,13 @@ class cache {
 				cb[setnumber*ways+i].valid = true;
 				updated = true;
 				break;
-			}
+			}/*
+			if (cb[setnumber*(1+i)].valid == false) {
+				cb[setnumber*(1+i)].addr = new_addr;
+				cb[setnumber*(1+i)].valid = true;
+				updated = true;
+				break;
+			}*/
 		}
 
 		return updated;
@@ -148,19 +153,23 @@ class cache {
 	//If this is called, no empty ways (as defined in code below)
 	//Evict way matching current counter and write new value
 	//Update counter and return evicted data
-	 bool saveEvicted(bitset<32> eaddr, bitset<32> replace) {
+	bitset<32> evict (bitset<32> eaddr, bitset<32> replace) {
 		long snum = getSet(eaddr);
-		bool evict = false;
-		//bitset<32> evicted = cb[snum*ways+counter].addr;
-		if(cb[snum*ways+counter].dirty == true){
-            evictedData = cb[snum*ways+counter].addr;
-            evict = true;
-            cb[snum*ways+counter].dirty = false;
+		bitset<32> evicted;
+		if(cb[snum*ways+counter].dirty){
+            evicted = cb[snum*ways+counter].addr;
+           // cout << cb[]
+            //cb[snum*ways+counter].dirty = false;
+		}else{
+		    evicted = bitset<32>(0);
 		}
+		//bitset<32> evicted = cb[snum*(1+counter)].addr;
 		cb[snum*ways+counter].addr = replace;
+		//cb[snum*ways+counter].dirty = false;
+		//cb[snum*(1+counter)].addr = replace;
 		updateCounter();
 
-		return evict;
+		return evicted;
 	}
 
 	void updateCounter() {
@@ -317,29 +326,24 @@ int main(int argc, char* argv[]){
 							update = *l2cache.ra; //Get data from L2 cache
 							//Write to empty way in L1 or evict and then write
 							if (!l1cache.find_empty_way(accessaddr, update)) {
-								if(l1cache.saveEvicted(accessaddr, update)){ //updating data in L1 and checking if the data being evicted is dirty or not
-                                    l2cache.find(l2cache.evictedData, true);//if evicted data is dirty, then there is write access to L2
-                                }
-								// << "L1 spare: " << spare << endl;
-								//l2cache.find(spare, true); //Perform write operation for evicted data
+								spare = l1cache.evict(accessaddr, update);
+								cout << "L1 spare: " << spare << endl;
+								l2cache.find(spare, true); //Perform write operation for evicted data
 							}
 						} else { //Not found in L2
 							cout << " L2: miss" << endl;
 							L2AcceState = RM; //Update L2 state
 							//Write to empty way or evict and then write
 							if (!l1cache.find_empty_way(accessaddr, accessaddr)) {
-								if(l1cache.saveEvicted(accessaddr, accessaddr)){ //updating data in L1 and checking if the data being evicted is dirty or not
-                                    l2cache.find(l2cache.evictedData, true);//if evicted data is dirty, then there is write access to L2
-                                }
+								spare = l1cache.evict(accessaddr, accessaddr);
+								//cout << "L1 spare: " << spare << endl;
+								if(spare.to_ulong() != 0)
+                                    l2cache.find(spare, true); //Perform write operation for evicted data
 							}
 							if (!l2cache.find_empty_way(accessaddr, accessaddr)) {
-								if(l2cache.saveEvicted(accessaddr, accessaddr)){
-                                    cout << "save evicted data in main memory if dirty bit is set"<< endl;
-                                    //cout << "Evicted Data from L2: " << *l2cache.evictedData << endl;
-								} //Save to main mem (don't need to do anything in sim)
-
+								spare = l2cache.evict(accessaddr, accessaddr); //Save to main mem (don't need to do anything in sim)
+								//cout << "L2 spare: " << spare << endl;
 							}
-
 						}
 					}
 
@@ -371,11 +375,11 @@ int main(int argc, char* argv[]){
 						}
 					}
 
-					 //Code to prevent going through full trace file
+					/* Code to prevent going through full trace file
 					///////// REMOVE BEFORE SUBMITTING //////////
-					//if (accessnum > 150)
-						//break;
-
+					if (accessnum > 150)
+						break;
+					*/
 
 
 
