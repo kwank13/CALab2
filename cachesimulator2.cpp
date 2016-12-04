@@ -114,6 +114,7 @@ class cache {
 		bool found = false;
 		//Search all ways for matching tag
 		for (int i = 0; i < ways; i++){
+           // cout << endl << "i=" << i<<"waddr: " << waddr << ", setnum" << setnum<< endl;
 			found = compareTag(waddr, cb[setnum][i].addr, tagBits);
             if(found)
                 break;
@@ -167,10 +168,10 @@ class cache {
 	}
 
 	void updateCounter(long setIndex) {
-		if (counter[setIndex] < ways)
-			counter[setIndex]++;
-		else
+		if (counter[setIndex] == ways-1)
 			counter[setIndex] = 0;
+		else
+			counter[setIndex]++;
 	}
 
 
@@ -376,7 +377,8 @@ int main(int argc, char* argv[]){
                       //cin.get();
 
              accessnum++;
-            // cin.get();
+            // if(accessnum > 5198)
+              //  cin.get();
              //system("pause");
 
 
