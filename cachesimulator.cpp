@@ -1,5 +1,4 @@
-
-/*
+ /*
 Cache Simulator
 Level one L1 and level two L2 cache parameters are read from file (block size, line per set and set per cache).
 The 32 bit address is divided into tag bits (t), set index bits (s) and block offset bits (b)
@@ -43,10 +42,8 @@ class cache {
 bool compareTag(bitset<32> addr1, bitset<32> addr2, int tagBits);
 
 //Struct for individual cache entries
-class cacheblock {
-    public:
+struct cacheblock {
 	bitset<32> addr;
-	bool dirty;// = false;
 	bool valid;// = false;
 };
 
@@ -54,39 +51,50 @@ class cache {
 
 	public:
 	int blocksize, ways, cachesize;
-	int tagBits, setBits, offsetBits, indexnum, counter;
-	struct cacheblock *cb; //Pointer to cache array
-	bitset<32> *ra; //Pointer to address - used in find() to pass back read hits
-    bitset<32> evictedData;
+	int tagBits, setBits, offsetBits, indexnum;
+	struct cacheblock **cb; //Pointer to cache array
+	int * counter;
+
 	//Calculate cache properties and initialize values
 	cache (int block, int assoc, int size) {
-		counter = 0;
+		//counter = 0;
 		blocksize = block;
-		cachesize = size*1024;
-		offsetBits = log(blocksize)/log(2);
+		//ra = NULL;
 		if(assoc == 0){
+            offsetBits = log(blocksize)/log(2);
             tagBits = 32-offsetBits;
             setBits = 0;
+            cachesize = size*1024;
             ways = cachesize/blocksize;
             indexnum = 1;
 		}else{
             ways = assoc;
             //int temp = (int)(log(size*1000)/log(2)) + 1; //find true cache size exponent
             //cachesize = (int)pow(2, temp); //true cache size
+            cachesize = size*1024;
+            offsetBits = log(blocksize)/log(2);
             indexnum = (cachesize/blocksize)/ways; //# of sets
             setBits = (int)(log(indexnum)/log(2));
             tagBits = 32 - (offsetBits + setBits);
 		}
+		counter = new int[indexnum];
+		for(int i=0; i<indexnum; i++){
+            counter[i] = 0;
+		}
+		cb = new cacheblock*[indexnum]; //create cache array
+		for(int i =0; i < indexnum; i++){
+            cb[i] = new cacheblock[ways];
+		}
+		//cb = new cacheblock[indexnum][ways];
 
-		cb = new cacheblock[ways*indexnum]; //create cache array
 	}
 
 	~cache() {
-		delete [] cb;
 	}
 
 	//Take in address and return set value as long
 	long getSet(bitset<32> iaddr){
+		//bitset<32> temp;
 		bitset<32> temp;
 		int start = offsetBits;
 		int end = offsetBits + setBits;
@@ -101,83 +109,72 @@ class cache {
 	//Take in address and check all ways for matching tag.
 	//If found return true, else return false
 	//If write access, then set dirty bit true
-	bool find (bitset<32> waddr, bool waccess) {
+	bool readAccess(bitset<32> waddr) {
 		long setnum = getSet(waddr);
 		bool found = false;
-
 		//Search all ways for matching tag
 		for (int i = 0; i < ways; i++){
-			found = compareTag(waddr, cb[setnum*ways+i].addr, tagBits);
-			//found = compareTag(waddr, cb[setnum*(1+i)].addr, tagBits);
-			if (found && cb[setnum*ways+i].valid == true) { //if found matching tag and data is valid
-            //if(found && cb[setnum*(1+i)].valid == true) {
-				//If write operation, update dirty bit
-				if (waccess) {
-					cb[setnum*ways+i].dirty = true;
-					//cb[setnum*(1+i)].dirty = true;
-				} else {
-					//For read operations, return found address
-					ra = &cb[setnum*ways+i].addr;
-					//ra = &cb[setnum*(1+i)].addr;
-				}
-				break;
-			}
-		}
+           // cout << endl << "i=" << i<<"waddr: " << waddr << ", setnum" << setnum<< endl;
+			found = compareTag(waddr, cb[setnum][i].addr, tagBits);
+            if(found)
+                break;
+        }
+		//cout << endl << "call to find. waddr: " << waddr << ", setnum: " << setnum << ", waccess: " << waccess << ", found: " << found << ", ra: " << ra;
 		return found;
+
+	}
+
+	void getAddrFromL2toL1(bitset<32> addr){
+	    //bool AddrInL1 = false;
+	    if(!fillEmptyWay(addr)){
+            this->evictAddrfromL1(addr);
+	    }
+	    return;
 	}
 
 	//Check if a way is empty (not valid data)
 	//If empty, write new value and return true, else return false
-	bool find_empty_way (bitset<32> old_addr, bitset<32> new_addr) {
-		long setnumber = getSet(old_addr);
+	bool fillEmptyWay (bitset<32> addr) {
+		long setnumber = getSet(addr);
 		bool updated = false;
 
 		for (int i = 0; i < ways; i++) {
-			if (cb[setnumber*ways+i].valid == false) {
-				cb[setnumber*ways+i].addr = new_addr;
-				cb[setnumber*ways+i].valid = true;
+			if (cb[setnumber][i].valid == false) {
+				cb[setnumber][i].addr = addr;
+				cb[setnumber][i].valid = true;
 				updated = true;
 				break;
-			}/*
-			if (cb[setnumber*(1+i)].valid == false) {
-				cb[setnumber*(1+i)].addr = new_addr;
-				cb[setnumber*(1+i)].valid = true;
-				updated = true;
-				break;
-			}*/
+			}
 		}
 
 		return updated;
 	}
 
+
 	//If this is called, no empty ways (as defined in code below)
 	//Evict way matching current counter and write new value
 	//Update counter and return evicted data
-	bitset<32> evict (bitset<32> eaddr, bitset<32> replace) {
-		long snum = getSet(eaddr);
-		bitset<32> evicted;
-		if(cb[snum*ways+counter].dirty){
-            evicted = cb[snum*ways+counter].addr;
-           // cout << cb[]
-            //cb[snum*ways+counter].dirty = false;
-		}else{
-		    evicted = bitset<32>(0);
-		}
-		//bitset<32> evicted = cb[snum*(1+counter)].addr;
-		cb[snum*ways+counter].addr = replace;
-		//cb[snum*ways+counter].dirty = false;
-		//cb[snum*(1+counter)].addr = replace;
-		updateCounter();
+	 void evictAddrfromL1(bitset<32> addr){
 
-		return evicted;
+		long snum = getSet(addr);
+		int counterValue = counter[snum];
+		cb[snum][counterValue].addr = addr;
+
+		//cout << ", eaddr: " << eaddr << ", replace: "<< replace << ", snum: " << snum << ", evictedData: "<<evictedData;
+		//cout << ", cb[snum*ways+counter].dirty: " << cb[snum*ways+counter].dirty << ", cb[snum*ways+counter].addr";
+		//cout << cb[snum][counter].addr;// << ", evict: " << evict;
+        updateCounter(snum);
+		return;
 	}
 
-	void updateCounter() {
-		if (counter < ways)
-			counter++;
+	void updateCounter(long setIndex) {
+		if (counter[setIndex] == ways-1)
+			counter[setIndex] = 0;
 		else
-			counter = 0;
+			counter[setIndex]++;
 	}
+
+
 };
 
 //Compare tags from given addresses
@@ -291,7 +288,7 @@ int main(int argc, char* argv[]){
 
     if (traces.is_open()&&tracesout.is_open()){
         while (getline (traces,line)){   // read mem access file and access Cache
-
+            //cout << endl << line;
             istringstream iss(line);
             if (!(iss >> accesstype >> xaddr)) {break;}
             stringstream saddr(xaddr);
@@ -300,103 +297,106 @@ int main(int argc, char* argv[]){
 
 
            // access the L1 and L2 Cache according to the trace;
-              if (accesstype.compare("R")==0)
-
-             {
+            if (accesstype.compare("R")==0){
                  //Implement by you:
                  // read access to the L1 Cache,
                  //  and then L2 (if required),
                  //  update the L1 and L2 access state variable;
 
-					cout << accessnum << " - read: ";
-					//Check for address in L1 cache
-					//If found, print status and update L1/L2 states as appropriate
-					if (l1cache.find(accessaddr, false)) {
-						cout << "L1: hit L2: no access" << endl;
-						L1AcceState = RH; L2AcceState = NA;
-					} else { //If not found in L1 cache
-						cout << "L1: miss";
-						L1AcceState = RM; //Update L1 state
-						bitset<32> update;
-						bitset<32> spare;
+                cout << accessnum << " - read: ";
+                //Check for address in L1 cache
+                //If found, print status and update L1/L2 states as appropriate
+                if (l1cache.readAccess(accessaddr)) {
+                    cout << "L1: hit L2: no access" << endl;
+                    L1AcceState = RH; L2AcceState = NA;
+                } else { //If not found in L1 cache
+                    cout << "L1: miss";
+                    L1AcceState = RM; //Update L1 state
 						//Check if in L2 cache (forward read to next level)
-						if (l2cache.find(accessaddr, false)) { //Found in L2 cache
-							cout << " L2: hit" << endl;
-							L2AcceState = RH; //Update L2 state
-							update = *l2cache.ra; //Get data from L2 cache
-							//Write to empty way in L1 or evict and then write
-							if (!l1cache.find_empty_way(accessaddr, update)) {
-								spare = l1cache.evict(accessaddr, update);
-								cout << "L1 spare: " << spare << endl;
-								l2cache.find(spare, true); //Perform write operation for evicted data
-							}
-						} else { //Not found in L2
-							cout << " L2: miss" << endl;
-							L2AcceState = RM; //Update L2 state
-							//Write to empty way or evict and then write
-							if (!l1cache.find_empty_way(accessaddr, accessaddr)) {
-								spare = l1cache.evict(accessaddr, accessaddr);
-								//cout << "L1 spare: " << spare << endl;
-								if(spare.to_ulong() != 0)
-                                    l2cache.find(spare, true); //Perform write operation for evicted data
-							}
-							if (!l2cache.find_empty_way(accessaddr, accessaddr)) {
-								spare = l2cache.evict(accessaddr, accessaddr); //Save to main mem (don't need to do anything in sim)
-								//cout << "L2 spare: " << spare << endl;
-							}
+                    if (l2cache.readAccess(accessaddr)) { //Found in L2 cache
+                        cout << " L2: hit" << endl;
+                        L2AcceState = RH; //Update L2 state
+                        l1cache.getAddrFromL2toL1(accessaddr);
+
+                    } else { //Not found in L2
+                        cout << " L2: miss" << endl;
+                        L2AcceState = RM; //Update L2 state
+                        //Write to empty way or evict and then write
+                        l2cache.getAddrFromL2toL1(accessaddr);
+                        l1cache.getAddrFromL2toL1(accessaddr);
+
+                    }
+                }
+            }else{
+                //Implement by you:
+                // write access to the L1 Cache,
+                //and then L2 (if required),
+                //update the L1 and L2 access state variable;
+
+                cout << accessnum << " - write: ";
+                if (l1cache.readAccess(accessaddr)) { //Write hit in L1
+                    cout << "L1: hit L2: no access" << endl;
+                    L1AcceState = WH; L2AcceState = NA;
+                } else { //Write miss in L1
+                    cout << "L1: miss";
+                    L1AcceState = WM;
+                    if (l2cache.readAccess(accessaddr)) { //Write hit in L2
+                        cout << " L2: hit" << endl;
+                        L2AcceState = WH;
+                    } else { //Write miss in L2
+                        cout << " L2: miss" << endl;
+                        L2AcceState = WM;
 						}
-					}
+                }
+            }
 
 
 
 
 
-                 }
-             else
-             {
-                   //Implement by you:
-                  // write access to the L1 Cache,
-                  //and then L2 (if required),
-                  //update the L1 and L2 access state variable;
-
-					cout << accessnum << " - write: ";
-					if (l1cache.find(accessaddr, true)) { //Write hit in L1
-						cout << "L1: hit L2: no access" << endl;
-						L1AcceState = WH; L2AcceState = NA;
-					} else { //Write miss in L1
-						cout << "L1: miss";
-						L1AcceState = WM;
-						if (l2cache.find(accessaddr, true)) { //Write hit in L2
-							cout << " L2: hit" << endl;
-							L2AcceState = WH;
-						} else { //Write miss in L2
-							cout << " L2: miss" << endl;
-							L2AcceState = WM;
-						}
-					}
-
-					/* Code to prevent going through full trace file
-					///////// REMOVE BEFORE SUBMITTING //////////
-					if (accessnum > 150)
-						break;
-					*/
 
 
-
-
-
-                  }
-             accessnum++;
-
-			/*
-			//Prints out contents of cache
-			for (int i = 0; i < l2cache.ways; i++){
-				cout << "[91][" << i << "]: " << l2cache.cb[91*l2cache.ways+i].addr << endl;
+                  /*
+            for (int i = 0; i < 10; i++){
+                            cout << endl;
+                for(int j = 0; j < l2cache.ways; j++)
+				cout << l2cache.cb[i][j].addr << endl;
 				//cout << "[91][" << i << "] valid: " << l2cache.cb[91*l2cache.ways+i].valid << endl;
 			}
-			cout << "[183][0]: " << l1cache.cb[183*l1cache.ways+0].addr << endl;
-			*/
+			for (int i = 0; i < 10; i++){
+                    cout << endl;
+                for(int j = 0; j < l1cache.ways; j++)
+				cout << l1cache.cb[i][j].addr << endl;
+				//cout << "[91][" << i << "] valid: " << l2cache.cb[91*l2cache.ways+i].valid << endl;
+			}*/
 
+					 //Code to prevent going through full trace file
+					///////// REMOVE BEFORE SUBMITTING //////////
+					//if (accessnum > 11560)
+                      //  break;
+                      //cin.get();
+
+             accessnum++;
+            // if(accessnum > 5198)
+              //  cin.get();
+             //system("pause");
+
+
+/*
+			//Prints out contents of cache
+			for (int i = 0; i < l2cache.indexnum; i++){
+                for(int j = 0; j < l2cache.ways; j++)
+				cout << l2cache.cb[i][j].addr << endl;
+				//cout << "[91][" << i << "] valid: " << l2cache.cb[91*l2cache.ways+i].valid << endl;
+			}
+			for (int i = 0; i < l1cache.indexnum; i++){
+                for(int j = 0; j < l1cache.ways; j++)
+				cout << l1cache.cb[i][j].addr << endl;
+				//cout << "[91][" << i << "] valid: " << l2cache.cb[91*l2cache.ways+i].valid << endl;
+			}
+			//cout << "[183][0]: " << l1cache.cb[183*l1cache.ways+0].addr << endl;
+
+*/
 
             tracesout<< L1AcceState << " " << L2AcceState << endl;  // Output hit/miss results for L1 and L2 to the output file;
 
@@ -404,6 +404,7 @@ int main(int argc, char* argv[]){
         }
         traces.close();
         tracesout.close();
+        cout << endl<< "**********THAT'S ALL FOLKS**********"<< endl;
     }
     else cout<< "Unable to open trace or traceout file ";
 
